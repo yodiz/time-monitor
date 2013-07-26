@@ -28,6 +28,16 @@
         )
 
     notifyIcon
+
+let createCommand action =
+    let event1 = Event<_, _>()
+    {
+        new System.Windows.Input.ICommand with
+            member this.CanExecute(obj) = true
+            member this.Execute(obj) = action(obj)
+            member this.add_CanExecuteChanged(handler) = event1.Publish.AddHandler(handler)
+            member this.remove_CanExecuteChanged(handler) = event1.Publish.RemoveHandler(handler)
+    }
     
 type BindableBase() = 
     let propertyChanged = new Event<_,_>()
@@ -37,24 +47,32 @@ type BindableBase() =
         propertyChanged.Trigger(x, new System.ComponentModel.PropertyChangedEventArgs(property))
 
 type MyItem = {
+    mutable Id : string
     Name : string
 }
 
 open System.Linq 
 
-type myModel() =
+type myModel(store:Raven.Client.DocumentStoreBase) as this =
     inherit BindableBase() 
 
     let mutable stop = false
+
+    let queryCommand = createCommand (fun _ -> this.Query())
+        
+    let insert x = 
+        use session = store.OpenSession()
+        session.Store({ Id = null; Name = "Micke" })
+        session.SaveChanges()
 
     let test (a:myModel) = 
         async {
             seq {
                 while not stop do
                     yield ()
-                    System.Threading.Thread.Sleep(1000)
+                    System.Threading.Thread.Sleep(1)
             }
-            |> Seq.iter (fun _ -> a.Changed("Now"))
+            |> Seq.iteri (fun i _ -> a.Changed("Now"); insert i)
             return ()        
         }      
         |> Async.Start 
@@ -65,11 +83,26 @@ type myModel() =
 
     member x.Now with get() = System.DateTime.Now
 
+    member x.QueryCommand = queryCommand
+
+    member x.Query() = 
+        use session = store.OpenSession()
+        let results = session.Query<MyItem>()
+        printfn "Querying %A" (results.Count())
+//        results |> Seq.iter (printfn "%A")
+//        results        
+
+        ()
 [<EntryPoint>]
 [<System.STAThreadAttribute>]
 let main args = 
     let app = System.Windows.Application.LoadComponent(System.Uri("App.xaml", System.UriKind.Relative)) :?> System.Windows.Application
-    let myModel = myModel()
+
+    let store = new Raven.Client.Embedded.EmbeddableDocumentStore()
+    store.DataDirectory <- System.IO.Path.Combine(System.Environment.CurrentDirectory, "RavenData")
+    store.Initialize() |> ignore
+
+    let myModel = myModel(store)
     myModel.Start() 
     let mainWindow = System.Windows.Application.LoadComponent(System.Uri("MainWindow.xaml", System.UriKind.Relative)) :?> System.Windows.Window
     mainWindow.DataContext <- myModel

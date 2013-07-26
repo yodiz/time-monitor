@@ -8,6 +8,7 @@
         <StackPanel>
             <Label>Hejsan</Label>
             <TextBlock Text="{Binding Now}"></TextBlock>
+            <Button Command="{Binding QueryCommand}">Click me</Button>
             
         </StackPanel>
     </Grid>
