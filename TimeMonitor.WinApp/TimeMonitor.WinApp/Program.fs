@@ -1,69 +1,13 @@
-﻿let createNotifyIcon icon (window:System.Windows.Window) = 
-    let notifyIcon = new System.Windows.Forms.NotifyIcon();
-    notifyIcon.Icon <- icon
+﻿module Program
 
-    notifyIcon.DoubleClick 
-    |> Event.add 
-        (fun _ -> 
-            if window.WindowState = System.Windows.WindowState.Minimized then
-                window.WindowState <- System.Windows.WindowState.Normal;
-            window.Show();        
-        )
+open Model
 
-    window.Loaded |> Event.add (fun _ -> notifyIcon.Visible <- true;)
-    window.Closing |> Event.add (fun _ -> notifyIcon.Visible <- false;)
-
-    window.ShowInTaskbar <- true
-    window.Topmost <- true
-
-    window.StateChanged 
-    |> Event.add 
-        (fun _ -> 
-            if (window.WindowState = System.Windows.WindowState.Minimized) then
-                window.Topmost <- false;
-                window.ShowInTaskbar <- false;
-            else
-                window.ShowInTaskbar <- true;
-                window.Topmost <- true;
-        )
-
-    notifyIcon
-
-let createCommand action =
-    let event1 = Event<_, _>()
-    {
-        new System.Windows.Input.ICommand with
-            member this.CanExecute(obj) = true
-            member this.Execute(obj) = action(obj)
-            member this.add_CanExecuteChanged(handler) = event1.Publish.AddHandler(handler)
-            member this.remove_CanExecuteChanged(handler) = event1.Publish.RemoveHandler(handler)
-    }
-    
-type BindableBase() = 
-    let propertyChanged = new Event<_,_>()
-    interface System.ComponentModel.INotifyPropertyChanged with
-        [<CLIEvent>] member x.PropertyChanged = propertyChanged.Publish 
-    member x.Changed(property) = 
-        propertyChanged.Trigger(x, new System.ComponentModel.PropertyChangedEventArgs(property))
-
-type MyItem = {
-    mutable Id : string
-    Name : string
-}
-
-open System.Linq 
-
-type myModel(store:Raven.Client.DocumentStoreBase) as this =
-    inherit BindableBase() 
+type myModel(store:IActivityService) as this =
+    inherit Wpf.BindableBase() 
 
     let mutable stop = false
 
-    let queryCommand = createCommand (fun _ -> this.Query())
-        
-    let insert x = 
-        use session = store.OpenSession()
-        session.Store({ Id = null; Name = "Micke" })
-        session.SaveChanges()
+    let queryCommand = Wpf.createCommand (fun _ -> this.Query())
 
     let test (a:myModel) = 
         async {
@@ -72,7 +16,26 @@ type myModel(store:Raven.Client.DocumentStoreBase) as this =
                     yield ()
                     System.Threading.Thread.Sleep(1)
             }
-            |> Seq.iteri (fun i _ -> a.Changed("Now"); insert i)
+            |> Seq.iteri 
+                (fun i _ -> 
+                    store.Save(
+                        {
+                            Id = System.Guid.Empty 
+                            Machine = "Test"
+                            Activity = 
+                            {
+                                From = System.DateTime.Now 
+                                Duration = System.TimeSpan(0,0,1)
+                                Application = 
+                                {
+                                    Title = ""
+                                    Name = ""
+                                }                        
+                            }
+                        }
+                    )
+                    a.Changed("Now");
+                )
             return ()        
         }      
         |> Async.Start 
@@ -86,10 +49,11 @@ type myModel(store:Raven.Client.DocumentStoreBase) as this =
     member x.QueryCommand = queryCommand
 
     member x.Query() = 
-        use session = store.OpenSession()
-        let results = session.Query<MyItem>()
-        printfn "Querying %A" (results.Count())
-//        results |> Seq.iter (printfn "%A")
+        let bounds = store.GetBounds()
+        printfn "%A" bounds
+        let today = store.Load System.DateTime.Now.Date (System.DateTime.Now.Date.AddDays(1.0))
+        printfn "%A" (today |> Seq.length)
+//        today |> Seq.iter (printfn "%A")
 //        results        
 
         ()
@@ -102,12 +66,14 @@ let main args =
     store.DataDirectory <- System.IO.Path.Combine(System.Environment.CurrentDirectory, "RavenData")
     store.Initialize() |> ignore
 
-    let myModel = myModel(store)
+    let activityService : IActivityService = upcast Raven.RavenActivityService(store)
+
+    let myModel = myModel(activityService)
     myModel.Start() 
     let mainWindow = System.Windows.Application.LoadComponent(System.Uri("MainWindow.xaml", System.UriKind.Relative)) :?> System.Windows.Window
     mainWindow.DataContext <- myModel
     use icon = new System.Drawing.Icon("Icon1.ico")
-    use notifyIcon = createNotifyIcon icon mainWindow 
+    use notifyIcon = Wpf.createNotifyIcon icon mainWindow 
 
     let _ = app.Run(mainWindow);
     myModel.Terminate()
