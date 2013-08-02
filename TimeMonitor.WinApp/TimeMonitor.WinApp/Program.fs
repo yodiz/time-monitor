@@ -8,41 +8,10 @@ type myModel(store:IActivityService) as this =
     let mutable stop = false
 
     let queryCommand = Wpf.createCommand (fun _ -> this.Query())
-
-    let test (a:myModel) = 
-        async {
-            seq {
-                while not stop do
-                    yield ()
-                    System.Threading.Thread.Sleep(1)
-            }
-            |> Seq.iteri 
-                (fun i _ -> 
-                    store.Save(
-                        {
-                            Id = System.Guid.Empty 
-                            Machine = "Test"
-                            Activity = 
-                            {
-                                From = System.DateTime.Now 
-                                Duration = System.TimeSpan(0,0,1)
-                                Application = 
-                                {
-                                    Title = ""
-                                    Name = ""
-                                }                        
-                            }
-                        }
-                    )
-                    a.Changed("Now");
-                )
-            return ()        
-        }      
-        |> Async.Start 
-        
+       
     member x.Terminate() = stop <- true
 
-    member x.Start() = test x
+//    member x.Start() = test x
 
     member x.Now with get() = System.DateTime.Now
 
@@ -62,17 +31,27 @@ type myModel(store:IActivityService) as this =
 let main args = 
     let app = System.Windows.Application.LoadComponent(System.Uri("App.xaml", System.UriKind.Relative)) :?> System.Windows.Application
 
-
     use db = Db4objects.Db4o.Db4oEmbedded.OpenFile(System.IO.Path.Combine(System.Environment.CurrentDirectory, "db4o.dat"))
     let activityService : IActivityService = upcast Db4o.Db4oActivityService(db)
 
+    let activityReporter : IActivityReporter = upcast Monitor.DefaultActivityReporter()
+
+    activityReporter.ActivityUpdate 
+    |> Event.add 
+      (fun r -> 
+        activityService.Save (IdentifyableActivity.New r "MachineId")
+      )
+
     let myModel = myModel(activityService)
-    myModel.Start() 
     let mainWindow = System.Windows.Application.LoadComponent(System.Uri("MainWindow.xaml", System.UriKind.Relative)) :?> System.Windows.Window
     mainWindow.DataContext <- myModel
     use icon = new System.Drawing.Icon("Icon1.ico")
     use notifyIcon = Wpf.createNotifyIcon icon mainWindow 
 
+    activityReporter.Start() |> ignore
+
     let _ = app.Run(mainWindow);
+    activityReporter.Stop() |> ignore
+
     myModel.Terminate()
     0

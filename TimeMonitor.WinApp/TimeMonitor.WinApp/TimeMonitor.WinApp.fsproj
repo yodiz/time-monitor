@@ -59,6 +59,7 @@
     <Compile Include="Model.fs" />
     <Compile Include="Db4o.fs" />
     <Compile Include="Wpf.fs" />
+    <Compile Include="Monitor.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Resource Include="App.xaml" />

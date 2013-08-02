@@ -3,8 +3,7 @@
 
 open Model
 open System.Linq 
-
-
+open Model
 
 type Db4oActivityService(db:Db4objects.Db4o.IEmbeddedObjectContainer) = 
   interface IActivityService with
