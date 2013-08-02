@@ -49,8 +49,8 @@ type myModel(store:IActivityService) as this =
     member x.QueryCommand = queryCommand
 
     member x.Query() = 
-        let bounds = store.GetBounds()
-        printfn "%A" bounds
+//        let bounds = store.GetBounds()
+//        printfn "%A" bounds
         let today = store.Load System.DateTime.Now.Date (System.DateTime.Now.Date.AddDays(1.0))
         printfn "%A" (today |> Seq.length)
 //        today |> Seq.iter (printfn "%A")
@@ -62,11 +62,9 @@ type myModel(store:IActivityService) as this =
 let main args = 
     let app = System.Windows.Application.LoadComponent(System.Uri("App.xaml", System.UriKind.Relative)) :?> System.Windows.Application
 
-    let store = new Raven.Client.Embedded.EmbeddableDocumentStore()
-    store.DataDirectory <- System.IO.Path.Combine(System.Environment.CurrentDirectory, "RavenData")
-    store.Initialize() |> ignore
 
-    let activityService : IActivityService = upcast Raven.RavenActivityService(store)
+    use db = Db4objects.Db4o.Db4oEmbedded.OpenFile(System.IO.Path.Combine(System.Environment.CurrentDirectory, "db4o.dat"))
+    let activityService : IActivityService = upcast Db4o.Db4oActivityService(db)
 
     let myModel = myModel(activityService)
     myModel.Start() 
