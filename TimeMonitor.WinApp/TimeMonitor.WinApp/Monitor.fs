@@ -10,6 +10,7 @@ type Setting = {
   //How long to sleep before checking for work or idle
   SleepMs : int
   ReportIntervalMs : int
+  MachineName : string
 }
 
 module private Impl = 
@@ -110,7 +111,6 @@ module private Impl =
 
     match result with 
     |Output.IdleLimitReached -> 
-      printfn "%A" result
       setting,{ LastRunTickCount = tickCount; IdleTimeMs = 0; Worked = s.Worked; LastReport = s.LastReport }
     |Output.Idle idleTime -> 
       setting,{ LastRunTickCount = tickCount; IdleTimeMs = s.IdleTimeMs + idleTime; Worked = s.Worked ; LastReport = s.LastReport }
@@ -129,7 +129,7 @@ module private Impl =
           |> Map.toSeq
           |> Seq.iter 
             (fun (k,v) -> 
-              event.Trigger { Activity.Application = k; From = s.LastReport; To = now; Duration = System.TimeSpan.FromMilliseconds(float v)  }
+              event.Trigger { Activity.Application = k; From = s.LastReport; To = now; Duration = System.TimeSpan.FromMilliseconds(float v); Machine = setting.MachineName  }
             ) 
           Map.empty, now
         else
@@ -175,6 +175,7 @@ type DefaultActivityReporter() as this =
     Setting.IdleLimitMs = int (System.TimeSpan(0, 1, 0).TotalMilliseconds)
     SleepMs = 1000
     ReportIntervalMs = int (System.TimeSpan(0, 0, 5).TotalMilliseconds)
+    MachineName = ""
   } 
   
   let backgroundExecutor = BackgroundExecutor(fun (_,s) -> processer this.Setting event s )

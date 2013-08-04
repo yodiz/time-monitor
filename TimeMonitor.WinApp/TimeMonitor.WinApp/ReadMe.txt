@@ -1,7 +1,9 @@
 ﻿
-Select period (days)
-
-Group by day, Week, month, year
-Report active hours, as well as 'working periods'
-
-9-12 12-18
+ * Simple report
+   - Select period
+   - Select grouping
+   - Display....
+ * Compress DB (By hour)
+ * Edit Settings from GUI
+ * Sync to online repository
+ * Get icon fopr application and store as meta-data

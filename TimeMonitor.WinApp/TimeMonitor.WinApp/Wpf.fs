@@ -41,9 +41,46 @@ let createCommand action =
             member this.remove_CanExecuteChanged(handler) = event1.Publish.RemoveHandler(handler)
     }
 
+
+//open System.ComponentModel
+open Microsoft.FSharp.Quotations.Patterns
+
 type BindableBase() = 
     let propertyChanged = new Event<_,_>()
+    let getPropertyName = 
+      function 
+        | PropertyGet(_,pi,_) -> pi.Name
+        | _ -> invalidOp "Expecting property getter expression"
     interface System.ComponentModel.INotifyPropertyChanged with
         [<CLIEvent>] member x.PropertyChanged = propertyChanged.Publish 
     member x.Changed(property) = 
         propertyChanged.Trigger(x, new System.ComponentModel.PropertyChangedEventArgs(property))
+    member x.Changed(qoutation) = 
+        propertyChanged.Trigger(x, new System.ComponentModel.PropertyChangedEventArgs(getPropertyName qoutation))
+
+let byName name (control:System.Windows.Controls.Control) = 
+  control.FindName(name) :?> System.Windows.Controls.Control
+
+[<AbstractClass>]
+type ObservableBase<'a>() = 
+  let propertyChanged = new Event<_,_>()
+  let valueChanged = new Event<_>();
+  member x.Changed() = 
+    propertyChanged.Trigger(x, new System.ComponentModel.PropertyChangedEventArgs("Value"))
+    valueChanged.Trigger ()
+  interface System.ComponentModel.INotifyPropertyChanged with
+      [<CLIEvent>] member x.PropertyChanged = propertyChanged.Publish 
+  abstract Value : 'a with get, set
+  member x.ValueChanged = valueChanged.Publish 
+
+type ObservableValue<'a>(value:'a) = 
+  inherit ObservableBase<'a>()
+  let mutable value = value
+  override x.Value with get () = value and set v = value <- v; x.Changed()
+  
+type ComputedValue<'a, 'b, 'c>(a:ObservableBase<'a>, b:ObservableBase<'b>, fn : 'a -> 'b -> 'c) as  this = 
+  inherit ObservableBase<'c>()
+  do
+    a.ValueChanged |> Event.add (fun x -> this.Changed())
+    b.ValueChanged |> Event.add (fun x -> this.Changed())
+  override x.Value with get() = fn a.Value b.Value and set v = failwithf "Computed value is readonly"

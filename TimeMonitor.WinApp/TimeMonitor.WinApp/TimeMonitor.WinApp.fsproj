@@ -63,7 +63,6 @@
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Resource Include="App.xaml" />
-    <Resource Include="MainWindow.xaml" />
     <Content Include="Icon1.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -123,6 +122,13 @@
     <Reference Include="System.Windows.Forms.DataVisualization" />
     <Reference Include="System.Xaml" />
     <Reference Include="WindowsBase" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\TimeMonitor.WinApp.Controls\TimeMonitor.WinApp.Controls.csproj">
+      <Name>TimeMonitor.WinApp.Controls</Name>
+      <Project>{b7413427-e403-482c-8c9a-0aa9aa939557}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
