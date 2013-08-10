@@ -6,8 +6,63 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300">
+    <UserControl.Resources>
+
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <DataTemplate x:Key="DefaultDataTemplate">
+            <StackPanel>
+                <!--<StackPanel Orientation="Horizontal">
+                    <Label Content="{Binding Activity.From}"></Label>
+                    <Label Content="{Binding Activity.To}"></Label>
+                    <Label Content="{Binding Activity.Duration}"></Label>
+                    <Label Content="{Binding Activity.Application.Name}"></Label>
+                    <Label Content="{Binding Activity.Application.Title}"></Label>
+                    <Label Content="{Binding Activity.Machine}"></Label>
+                </StackPanel>-->
+                <StackPanel Margin="30 5 0 5">
+                    <StackPanel>
+                        <Expander IsExpanded="{Binding Expanded.Value}" Header="{Binding Description}">
+                            <StackPanel>
+                            <ItemsControl ItemsSource="{Binding Groups}" ItemTemplate="{DynamicResource ResourceKey=DefaultDataTemplate}"/>
+                            <ItemsControl ItemsSource="{Binding Activities}" Visibility="{Binding IsBottom, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Label Content="{Binding From}"/>
+                                                <Label Content="{Binding To}"/>
+                                                <Label Content="{Binding Duration}"/>
+                                                <Label Content="{Binding Application.Name}"/>
+                                                <Label Content="{Binding Application.Title}"/>
+                                                <Label Content="{Binding Machine}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            </StackPanel>
+                        </Expander>
+                        
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="RootDataTemplate">
+            <StackPanel Margin="0">
+                <StackPanel>
+                    <ItemsControl ItemsSource="{Binding Groups}" ItemTemplate="{DynamicResource ResourceKey=DefaultDataTemplate}"/>
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+
+
+
+    </UserControl.Resources>
+
     <Grid>
-        <StackPanel>            
+        <StackPanel>
             <WrapPanel>
                 <Label>From:</Label>
                 <DatePicker SelectedDate="{Binding FromDate.Value}"/>
@@ -26,7 +81,12 @@
             <Button Command="{Binding QueryCommand}">Query</Button>
 
             <ScrollViewer Height="300">
-                <ItemsControl ItemsSource="{Binding GroupedActivities.Value}">
+                <ContentControl Content="{Binding Groups.Value.Value}" ContentTemplate="{StaticResource RootDataTemplate}">
+                    
+                    
+                </ContentControl>
+
+                <!--<ItemsControl ItemsSource="{Binding GroupedActivities.Value}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel>
@@ -45,7 +105,8 @@
                                                 <TextBlock Text=" - "></TextBlock>
                                                 <TextBlock Text="{Binding Duration, StringFormat={}{0:hh\\:mm\\:ss}}"></TextBlock>                                                
                                             </WrapPanel>
-                                            <!--<StackPanel>
+                                            -->
+                <!--<StackPanel>
                                                 
 
                                                 <TextBlock Text="{Binding Duration}"></TextBlock>
@@ -53,6 +114,7 @@
                                                 <Label Content="{Binding Application.Title}"></Label>
                                                 <Label Content="{Binding Machine}"></Label>
                                             </StackPanel>-->
+                <!--
                                             
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -60,9 +122,9 @@
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                </ItemsControl>-->
             </ScrollViewer>
         </StackPanel>
-        
+
     </Grid>
 </UserControl>

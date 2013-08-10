@@ -65,9 +65,9 @@ let byName name (control:System.Windows.Controls.Control) =
 type ObservableBase<'a>() = 
   let propertyChanged = new Event<_,_>()
   let valueChanged = new Event<_>();
-  member x.Changed() = 
+  member x.Changed(newValue:'a) = 
     propertyChanged.Trigger(x, new System.ComponentModel.PropertyChangedEventArgs("Value"))
-    valueChanged.Trigger ()
+    valueChanged.Trigger (newValue)
   interface System.ComponentModel.INotifyPropertyChanged with
       [<CLIEvent>] member x.PropertyChanged = propertyChanged.Publish 
   abstract Value : 'a with get, set
@@ -76,11 +76,11 @@ type ObservableBase<'a>() =
 type ObservableValue<'a>(value:'a) = 
   inherit ObservableBase<'a>()
   let mutable value = value
-  override x.Value with get () = value and set v = value <- v; x.Changed()
+  override x.Value with get () = value and set v = value <- v; x.Changed(v)
   
 type ComputedValue<'a, 'b, 'c>(a:ObservableBase<'a>, b:ObservableBase<'b>, fn : 'a -> 'b -> 'c) as  this = 
   inherit ObservableBase<'c>()
   do
-    a.ValueChanged |> Event.add (fun x -> this.Changed())
-    b.ValueChanged |> Event.add (fun x -> this.Changed())
+    a.ValueChanged |> Event.add (fun x -> this.Changed(this.Value))
+    b.ValueChanged |> Event.add (fun x -> this.Changed(this.Value))
   override x.Value with get() = fn a.Value b.Value and set v = failwithf "Computed value is readonly"
