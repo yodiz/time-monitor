@@ -9,6 +9,7 @@
     <UserControl.Resources>
 
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <Controls:IntToMarginConverter x:Key="IntToMarginConverter" Times="20" />
 
         <DataTemplate x:Key="DefaultDataTemplate">
             <StackPanel>
@@ -20,15 +21,32 @@
                     <Label Content="{Binding Activity.Application.Title}"></Label>
                     <Label Content="{Binding Activity.Machine}"></Label>
                 </StackPanel>-->
-                <StackPanel Margin="30 5 0 5">
+                <StackPanel Margin="30 1 0 1">
                     <StackPanel>
-                        <Expander IsExpanded="{Binding Expanded.Value}" Header="{Binding Description}">
+                        <Expander IsExpanded="{Binding Expanded.Value}">
+                            <Expander.Header>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Description}"></TextBlock>
+                        
+                                    <!--<StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Activity.From, StringFormat={}{0:HH\:mm}}" Margin="5" />
+                                        <TextBlock Text="{Binding Activity.To, StringFormat={}{0:HH\:mm}}" Margin="5" />
+                                        <TextBlock Text="{Binding Activity.Duration}" Margin="5" />
+                                        <TextBlock Text="{Binding Activity.Application.Name}" Margin="5" />
+                                        <TextBlock Text="{Binding Activity.Application.Title}" Margin="5" />
+                                        <TextBlock Text="{Binding Activity.Machine}" Margin="5" />
+                                    </StackPanel>-->
+                                </StackPanel>
+
+                            </Expander.Header>
                             <StackPanel>
-                            <ItemsControl ItemsSource="{Binding Groups}" ItemTemplate="{DynamicResource ResourceKey=DefaultDataTemplate}"/>
-                            <ItemsControl ItemsSource="{Binding Activities}" Visibility="{Binding IsBottom, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel>
+                                <ItemsControl ItemsSource="{Binding Groups}" ItemTemplate="{DynamicResource ResourceKey=DefaultDataTemplate}"/>
+
+                                <Border BorderBrush="Red" BorderThickness="2" Visibility="{Binding IsBottom, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <ItemsControl ItemsSource="{Binding Activities}" >
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+
                                             <StackPanel Orientation="Horizontal">
                                                 <Label Content="{Binding From}"/>
                                                 <Label Content="{Binding To}"/>
@@ -37,13 +55,18 @@
                                                 <Label Content="{Binding Application.Title}"/>
                                                 <Label Content="{Binding Machine}"/>
                                             </StackPanel>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                </Border>
+
+
+
+
                             </StackPanel>
                         </Expander>
-                        
+
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
@@ -82,8 +105,8 @@
 
             <ScrollViewer Height="300">
                 <ContentControl Content="{Binding Groups.Value.Value}" ContentTemplate="{StaticResource RootDataTemplate}">
-                    
-                    
+
+
                 </ContentControl>
 
                 <!--<ItemsControl ItemsSource="{Binding GroupedActivities.Value}">

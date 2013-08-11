@@ -68,6 +68,8 @@ module GroupRules =
     { Sorter = List.sortBy (fun a -> a.Application.Name); Reducer = (fun a b -> if a.Application.Name = b.Application.Name then (Some (combine a b)) else None); }
   let application = 
     { Sorter = List.sortBy (fun a -> a.Application); Reducer = (fun a b -> if a.Application = b.Application then (Some (combine a b)) else None); }
+  let id = 
+    { Sorter = id; Reducer = (fun a b -> None) }
 
   let reduceActivityList (activities:Activity list) (groupRule:GroupRule) = 
     //Lopa igenom activities
@@ -86,8 +88,8 @@ module GroupRules =
               let currentGroup = a :: currentGroup
               Some g, currentGroup, groups
             |None -> 
-              Some a, [], (b,currentGroup) :: groups
-          |None -> Some a, currentGroup, groups
+              Some a, a::[], (b,currentGroup) :: groups
+          |None -> Some a, a::currentGroup, groups
         )
         (None,[],[])
     let groups = match lastAct with Some b -> (b,currentGroup) :: groups | None -> groups
@@ -99,24 +101,36 @@ type GroupingHirarchy = {
   Description : Activity -> string
 }
 
-type ActivityGroupViewModel(displayActivity, activities : Activity list, groupingHirarchy : GroupingHirarchy) as this = 
+type ActivityGroupViewModel(displayActivity, activities : Activity list, groupingHirarchy : GroupingHirarchy option, description : Activity -> string, level) as this = 
     let mutable loaded = false
 //    let groups = Wpf.ObservableValue([])
     let expanded = Wpf.ObservableValue(false)
     let calculateCommand = Wpf.createCommand (fun _ -> this.Calculate())
-    let description = sprintf "%s" (groupingHirarchy.Description displayActivity)
+    let description = description displayActivity
 
-    let children, isBottom = 
-      match groupingHirarchy.ChildGroupRule with
-      |Some childRule -> 
-        let childs = 
-          GroupRules.reduceActivityList activities groupingHirarchy.GroupRule 
-          |> List.map 
-            (fun (groupedActivity,childActs) -> 
-              ActivityGroupViewModel(groupedActivity, childActs, childRule)
-            )
-        childs, false
-      |None -> [], true
+    let children = 
+      match groupingHirarchy with
+      |Some groupingHirarchy -> 
+        GroupRules.reduceActivityList activities groupingHirarchy.GroupRule 
+        |> List.map 
+          (fun (groupedActivity,childActs) -> 
+            ActivityGroupViewModel(groupedActivity, childActs, groupingHirarchy.ChildGroupRule, groupingHirarchy.Description, level+1)
+          )
+      |None -> []
+//
+//    let _, isBottom = 
+//      match groupingHirarchy.ChildGroupRule with
+//      |Some childRule -> 
+////        let childs = 
+////          GroupRules.reduceActivityList activities groupingHirarchy.GroupRule 
+////          |> List.map 
+////            (fun (groupedActivity,childActs) -> 
+////              ActivityGroupViewModel(groupedActivity, childActs, childRule)
+////            )
+//        [], false
+//      |None -> 
+//        [], true
+    let isBottom = groupingHirarchy.IsNone 
     let calculate () = 
 //      groups.Value <- getChildren()
       ()
@@ -133,6 +147,7 @@ type ActivityGroupViewModel(displayActivity, activities : Activity list, groupin
     member x.Groups = children
     member x.IsBottom = isBottom
     member x.Expanded = expanded
+    member x.Level = level
 
    
 
@@ -146,7 +161,34 @@ type ReportViewModel(store:IActivityService) as this =
   let toDate   =  Wpf.ObservableValue(System.DateTime.Today.AddDays(1.0 - float System.DateTime.Today.Day).AddMonths(1).AddDays(-1.0).Date)
   let activities = Wpf.ObservableValue([]);
   let groupedActivities = Wpf.ObservableValue([]);
-  let groups = Wpf.ObservableValue(None);
+  let groups = Wpf.ObservableValue(None)
+
+  let groupingHirarchy = 
+    {
+      GroupRule = GroupRules.sameDay
+      Description = (fun a -> sprintf "%s %s %s %s" (a.From.ToShortDateString()) (a.From.ToShortTimeString()) (a.To.ToShortTimeString()) (a.Duration.ToString("hh\:mm")))
+      ChildGroupRule = Some 
+        {
+          GroupRule = GroupRules.within15minutes
+          Description = (fun a -> sprintf "%s - %s" (a.From.ToShortTimeString()) (a.To.ToShortTimeString()))
+          ChildGroupRule = Some 
+            {
+              GroupRule = GroupRules.applicationName 
+              Description = (fun a -> sprintf "%s" a.Application.Name)
+              ChildGroupRule = Some
+                {
+                  Description = (fun a -> sprintf "%s" a.Application.Title)
+                  GroupRule = GroupRules.application
+                  ChildGroupRule = Some
+                    {
+                      Description = (fun a -> sprintf "%s - %s" (a.From.ToShortTimeString()) (a.To.ToShortTimeString()))
+                      GroupRule = GroupRules.withinNminutes 1 
+                      ChildGroupRule = None
+                    }
+                }
+            }
+        }
+    }
   
 
   member x.QueryCommand = queryCommand
@@ -157,66 +199,20 @@ type ReportViewModel(store:IActivityService) as this =
   member x.ToDate = toDate
   member x.GroupedActivities = groupedActivities
 
-  member x.Fetch() = 
-    activities.Value <- store.Load fromDate.Value toDate.Value |> Seq.toList 
+  member x.Fetch() = ()    
           
   
   member x.Query() = 
-    let groupingHirarchy = 
-      {
-        GroupRule = GroupRules.sameDay
-        Description = (fun _ -> "Root")
-        ChildGroupRule = Some 
-          {
-            GroupRule = GroupRules.within15minutes
-            Description = (fun a -> sprintf "%A" (a.From.ToShortDateString()))
-            ChildGroupRule = Some 
-              {
-                GroupRule = GroupRules.applicationName 
-                Description = (fun a -> sprintf "%s - %s" (a.From.ToShortTimeString()) (a.To.ToShortTimeString()))
-                ChildGroupRule = Some
-                  {
-                    Description = (fun a -> sprintf "%s" a.Application.Name)
-                    GroupRule = GroupRules.application
-                    ChildGroupRule = None
-                  }
-              }
-          }
-      }
-
-    let test = 
-      let q = activities.Value |> List.map (fun a -> a.Activity) |> List.reduce GroupRules.combine 
-      ActivityGroupViewModel(q, activities.Value |> List.map (fun a -> a.Activity), groupingHirarchy)
-    test.Calculate()
-    groups.Value <- Some test
-//    async {  
-//      //Group by date
-//      //Group by sub-date (time)
-//      //Group by app
-//      //Group by title
-//
-////      let grouped = 
-////        activities.Value
-////        |> Seq.map (fun a -> { a.Activity with Application = { a.Activity.Application with Title = ""; Name = "" }})
-////        |> Seq.groupBy (fun a -> a.From.Date)
-////        |> Seq.map 
-////          (fun (k,v) -> 
-////            { 
-////              GroupDescription = k
-////              Activities = 
-////                v 
-////                |> Seq.toList
-////                |> Activity.CombineList (System.TimeSpan(0,15,0))
-////                |> List.sortBy (fun a -> a.From)
-//////                |> Activity.Group  (fun a -> ()) |> Seq.map snd |> Seq.toList
-////            }
-////          )
-////        |> Seq.toList
-////        |> List.sortBy (fun a -> a.GroupDescription) 
-////      groupedActivities.Value <- grouped
-//  //    printfn "%A" grouped.Length 
-//    }
-//    |> Async.Start  
+    async {
+      printfn "Starting query"
+      activities.Value <- store.Load fromDate.Value toDate.Value |> Seq.toList 
+      let test = 
+        let q = activities.Value |> List.map (fun a -> a.Activity) |> List.reduce GroupRules.combine 
+        ActivityGroupViewModel(q, activities.Value |> List.map (fun a -> a.Activity), Some groupingHirarchy, sprintf "%A", 0)
+      groups.Value <- Some test
+      printfn "Done query"
+    }
+    |> Async.Start 
     ()
 
 [<EntryPoint>]
